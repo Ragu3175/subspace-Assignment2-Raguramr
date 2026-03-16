@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { NhostClient, NhostProvider, useAuthenticationStatus, useSignInEmailPassword, useSignUpEmailPassword, useSignOut, useAccessToken } from '@nhost/react';
+import React, { useState } from 'react';
+import { NhostClient, NhostProvider, useAuthenticationStatus, useSignInEmailPassword, useSignUpEmailPassword, useSignOut } from '@nhost/react';
 import { NhostApolloProvider } from '@nhost/react-apollo';
 import { useQuery, useMutation, gql } from '@apollo/client';
 
@@ -38,18 +38,6 @@ const DELETE_TODO = gql`
   mutation DeleteTodo($id: uuid!) {
     delete_todos_by_pk(id: $id) {
       id
-    }
-  }
-`;
-
-const INTROSPECT_QUERY = gql`
-  query {
-    __schema {
-      queryType {
-        fields {
-          name
-        }
-      }
     }
   }
 `;
@@ -121,42 +109,42 @@ function Auth() {
 
 function TodoApp() {
   const [todoTitle, setTodoTitle] = useState('');
-  const { loading: introspectionLoading, data: introspectionData } = useQuery(INTROSPECT_QUERY);
   const { loading, error, data } = useQuery(GET_TODOS);
   const [addTodo] = useMutation(ADD_TODO, { refetchQueries: [{ query: GET_TODOS }] });
   const [toggleTodo] = useMutation(TOGGLE_TODO);
   const [deleteTodo] = useMutation(DELETE_TODO, { refetchQueries: [{ query: GET_TODOS }] });
   const { signOut } = useSignOut();
-  const accessToken = useAccessToken();
-
-  useEffect(() => {
-    if (introspectionData) {
-      const fields = introspectionData.__schema.queryType.fields.map(f => f.name);
-      console.log('Available GraphQL fields for current user:', fields.filter(f => !f.startsWith('_')));
-    }
-  }, [introspectionData]);
 
   if (loading) return <div style={styles.container}>Loading...</div>;
   if (error) {
      return (
        <div style={styles.container}>
          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-           <h1 style={styles.header}>Auth Error Debug</h1>
+           <h1 style={styles.header}>Error</h1>
            <button onClick={signOut} style={styles.signOutButton}>Sign Out</button>
          </div>
-         <div style={{ color: 'red', padding: '10px', backgroundColor: '#fee2e2', borderRadius: '4px', marginBottom: '10px' }}>
+         <div style={{ color: 'red', padding: '10px', backgroundColor: '#fee2e2', borderRadius: '4px', marginTop: '10px' }}>
            <strong>Error:</strong> {error.message}
          </div>
-         <p>Check the browser console (F12) to see which fields are actually available to you right now.</p>
-         <p><strong>Common Fix:</strong> Go to Hasura -> Todos -> Permissions and make sure the <strong>'user'</strong> role has <strong>Select</strong> permissions.</p>
        </div>
      );
   }
 
+  const handleAddTodo = async (e) => {
+    e.preventDefault();
+    if (!todoTitle.trim()) return;
+    try {
+      await addTodo({ variables: { title: todoTitle } });
+      setTodoTitle('');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <div style={styles.container}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={styles.header}>Nhost Todo App</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h1 style={{ ...styles.header, margin: 0 }}>Nhost Todo App</h1>
         <button onClick={signOut} style={styles.signOutButton}>Sign Out</button>
       </div>
       <form onSubmit={handleAddTodo} style={styles.form}>
@@ -196,7 +184,7 @@ function TodoApp() {
 
 const styles = {
   container: { maxWidth: '500px', margin: '50px auto', padding: '20px', fontFamily: 'Arial, sans-serif', backgroundColor: '#f9f9f9', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' },
-  header: { color: '#333', fontSize: '24px' },
+  header: { color: '#333' },
   form: { display: 'flex', marginBottom: '20px', gap: '5px' },
   input: { flex: 1, padding: '10px', fontSize: '16px', border: '1px solid #ccc', borderRadius: '4px' },
   addButton: { padding: '10px 20px', fontSize: '16px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' },
