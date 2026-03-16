@@ -22,6 +22,8 @@ const ADD_TODO = gql`
   mutation AddTodo($title: String!) {
     insert_todos_one(object: { title: $title }) {
       id
+      title
+      is_completed
     }
   }
 `;
@@ -30,6 +32,8 @@ const TOGGLE_TODO = gql`
   mutation ToggleTodo($id: uuid!, $is_completed: Boolean!) {
     update_todos_by_pk(pk_columns: { id: $id }, _set: { is_completed: $is_completed }) {
       id
+      title
+      is_completed
     }
   }
 `;
