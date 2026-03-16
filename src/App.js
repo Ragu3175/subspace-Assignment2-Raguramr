@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NhostClient, NhostProvider } from '@nhost/react';
+import { NhostClient, NhostProvider, useAuthenticationStatus, useSignInEmailPassword, useSignUpEmailPassword, useSignOut } from '@nhost/react';
 import { NhostApolloProvider } from '@nhost/react-apollo';
 import { useQuery, useMutation, gql } from '@apollo/client';
 
@@ -42,12 +42,72 @@ const DELETE_TODO = gql`
   }
 `;
 
+function Auth() {
+  const [isSignIn, setIsSignIn] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const { signInEmailPassword, isLoading: isSignInLoading, isError: isSignInError, error: signInError } = useSignInEmailPassword();
+  const { signUpEmailPassword, isLoading: isSignUpLoading, isError: isSignUpError, error: signUpError } = useSignUpEmailPassword();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (isSignIn) {
+      await signInEmailPassword(email, password);
+    } else {
+      await signUpEmailPassword(email, password);
+    }
+  };
+
+  const isLoading = isSignInLoading || isSignUpLoading;
+  const isError = isSignInError || isSignUpError;
+  const error = signInError || signUpError;
+
+  return (
+    <div style={styles.container}>
+      <h1 style={styles.header}>{isSignIn ? 'Sign In' : 'Sign Up'}</h1>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={styles.input}
+          required
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          style={styles.input}
+          required
+        />
+        <button type="submit" style={styles.addButton} disabled={isLoading}>
+          {isLoading ? 'Loading...' : isSignIn ? 'Sign In' : 'Sign Up'}
+        </button>
+      </form>
+      {isError && <p style={{ color: 'red', textAlign: 'center' }}>{error?.message}</p>}
+      <p style={{ textAlign: 'center', marginTop: '15px' }}>
+        {isSignIn ? "Don't have an account? " : "Already have an account? "}
+        <button 
+          onClick={() => setIsSignIn(!isSignIn)} 
+          style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', textDecoration: 'underline' }}
+        >
+          {isSignIn ? 'Sign Up' : 'Sign In'}
+        </button>
+      </p>
+    </div>
+  );
+}
+
 function TodoApp() {
   const [todoTitle, setTodoTitle] = useState('');
   const { loading, error, data } = useQuery(GET_TODOS);
   const [addTodo] = useMutation(ADD_TODO, { refetchQueries: [{ query: GET_TODOS }] });
   const [toggleTodo] = useMutation(TOGGLE_TODO);
   const [deleteTodo] = useMutation(DELETE_TODO, { refetchQueries: [{ query: GET_TODOS }] });
+  const { signOut } = useSignOut();
 
   if (loading) return <div style={styles.container}>Loading...</div>;
   if (error) return <div style={styles.container}>Error: {error.message}</div>;
@@ -65,7 +125,10 @@ function TodoApp() {
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.header}>Nhost Todo App</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1 style={styles.header}>Nhost Todo App</h1>
+        <button onClick={signOut} style={styles.signOutButton}>Sign Out</button>
+      </div>
       <form onSubmit={handleAddTodo} style={styles.form}>
         <input
           type="text"
@@ -103,10 +166,11 @@ function TodoApp() {
 
 const styles = {
   container: { maxWidth: '500px', margin: '50px auto', padding: '20px', fontFamily: 'Arial, sans-serif', backgroundColor: '#f9f9f9', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' },
-  header: { textAlign: 'center', color: '#333' },
+  header: { color: '#333' },
   form: { display: 'flex', marginBottom: '20px' },
-  input: { flex: 1, padding: '10px', fontSize: '16px', border: '1px solid #ccc', borderRadius: '4px 0 0 4px' },
-  addButton: { padding: '10px 20px', fontSize: '16px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '0 4px 4px 0', cursor: 'pointer' },
+  input: { flex: 1, padding: '10px', fontSize: '16px', border: '1px solid #ccc', borderRadius: '4px' },
+  addButton: { padding: '10px 20px', fontSize: '16px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' },
+  signOutButton: { backgroundColor: '#6c757d', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' },
   list: { listStyle: 'none', padding: 0 },
   listItem: { display: 'flex', alignItems: 'center', padding: '10px', borderBottom: '1px solid #eee' },
   checkbox: { marginRight: '10px', cursor: 'pointer' },
@@ -114,12 +178,26 @@ const styles = {
   deleteButton: { backgroundColor: '#ff4d4d', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }
 };
 
-function App() {
-  return (
-    <NhostProvider nhost={nhost}>
+function AppContent() {
+  const { isAuthenticated, isLoading } = useAuthenticationStatus();
+
+  if (isLoading) return <div style={styles.container}>Checking auth status...</div>;
+
+  if (isAuthenticated) {
+    return (
       <NhostApolloProvider nhost={nhost}>
         <TodoApp />
       </NhostApolloProvider>
+    );
+  }
+
+  return <Auth />;
+}
+
+function App() {
+  return (
+    <NhostProvider nhost={nhost}>
+      <AppContent />
     </NhostProvider>
   );
 }
