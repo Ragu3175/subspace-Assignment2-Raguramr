@@ -73,6 +73,7 @@ function Auth() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           style={styles.input}
+          autoComplete="email"
           required
         />
         <input
@@ -81,13 +82,18 @@ function Auth() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           style={styles.input}
+          autoComplete={isSignIn ? "current-password" : "new-password"}
           required
         />
         <button type="submit" style={styles.addButton} disabled={isLoading}>
           {isLoading ? 'Loading...' : isSignIn ? 'Sign In' : 'Sign Up'}
         </button>
       </form>
-      {isError && <p style={{ color: 'red', textAlign: 'center' }}>{error?.message}</p>}
+      {isError && (
+        <div style={{ color: 'red', textAlign: 'center', marginTop: '10px', padding: '10px', backgroundColor: '#fee2e2', borderRadius: '4px' }}>
+          {error?.message || 'An error occurred'}
+        </div>
+      )}
       <p style={{ textAlign: 'center', marginTop: '15px' }}>
         {isSignIn ? "Don't have an account? " : "Already have an account? "}
         <button 
